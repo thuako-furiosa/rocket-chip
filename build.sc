@@ -108,6 +108,34 @@ trait RocketChipPublishModule
   override def publishVersion: T[String] = T("1.6-SNAPSHOT")
 }
 
+object myemulator extends Module {
+  val top: String = "freechips.rocketchip.system.TestHarness"
+  val config: String = "freechips.rocketchip.system.DefaultConfig"
+
+
+  object generator extends Module {
+    def elaborate = T {
+      val res = os.proc(
+        mill.util.Jvm.javaExe,
+        "-jar",
+        rocketchip(v.chiselCrossVersions.keys.head).assembly().path,
+        "--dir", T.dest.toString,
+        "--top", top,
+        config.split('_').flatMap(c => Seq("--config", c)),
+      ).call()
+
+      PathRef(T.dest)
+    }
+
+    def chiselAnno = T {
+      os.walk(elaborate().path).collectFirst { case p if p.last.endsWith("anno.json") => p }.map(PathRef(_)).get
+    }
+
+    def chirrtl = T {
+      os.walk(elaborate().path).collectFirst { case p if p.last.endsWith("fir") => p }.map(PathRef(_)).get
+    }
+  }
+}
 
 // Tests
 trait Emulator extends Cross.Module2[String, String] {
